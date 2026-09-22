@@ -96,6 +96,7 @@ CONF_SAVE_RESPONSES = "save_responses"
 CONF_SHOW_EERO_LOGO = "show_eero_logo"
 CONF_SUFFIX_CONNECTION_TYPE = "suffix_connection_type"
 CONF_TIMEOUT = "timeout"
+CONF_USE_SESSION_TOKEN = "use_session_token"
 
 VALUES_CLIENTS_FILTER = [CONF_FILTER_EXCLUDE, CONF_FILTER_INCLUDE]
 

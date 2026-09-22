@@ -47,6 +47,7 @@ from .const import (
     CONF_SUFFIX_CONNECTION_TYPE,
     CONF_TIMEOUT,
     CONF_USER_TOKEN,
+    CONF_USE_SESSION_TOKEN,
     CONF_WIRED_CLIENTS,
     CONF_WIRED_CLIENTS_FILTER,
     CONF_WIRELESS_CLIENTS,
@@ -97,7 +98,23 @@ class EeroConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return f"{self.user_input[CONF_NAME]} ({self.user_input[CONF_LOGIN]})"
 
     async def async_step_user(self, user_input=None):
-        """Async step user."""
+        """Choose the Eero authentication method."""
+        if user_input is not None:
+            if user_input[CONF_USE_SESSION_TOKEN]:
+                return await self.async_step_session()
+            return await self.async_step_login()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USE_SESSION_TOKEN, default=False): BooleanSelector(),
+                }
+            ),
+        )
+
+    async def async_step_login(self, user_input=None):
+        """Authenticate using Eero email or SMS verification."""
         errors = {}
 
         if user_input:
@@ -117,17 +134,45 @@ class EeroConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.user_input[CONF_USER_TOKEN] = self.response["user_token"]
                 return await self.async_step_verify()
 
-        user_input = {}
-        conf_login = user_input[CONF_LOGIN] if user_input else None
-
         return self.async_show_form(
-            step_id="user",
+            step_id="login",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_LOGIN, default=conf_login): TextSelector(
-                        TextSelectorConfig(
-                            type=TextSelectorType.TEXT,
-                        )
+                    vol.Required(CONF_LOGIN): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_session(self, user_input=None):
+        """Authenticate using an existing Eero session token."""
+        errors = {}
+
+        if user_input:
+            user_token = user_input[CONF_USER_TOKEN].strip()
+            if user_token.startswith("s="):
+                user_token = user_token[2:].split(";", 1)[0].strip()
+            self.api = EeroAPI(user_token=user_token)
+            self.response = await self.hass.async_add_executor_job(self.api.update)
+            if not self.response.log_id or not self.response.networks:
+                errors["base"] = "invalid_session"
+            else:
+                await self.async_set_unique_id(self.response.log_id.lower())
+                self._abort_if_unique_id_configured()
+                login = self.response.email or self.response.phone or "Amazon session"
+                self.user_input[CONF_LOGIN] = login
+                self.user_input[CONF_USER_TOKEN] = self.api.user_token
+                self.user_input[CONF_NAME] = self.response.name or login
+                return await self.async_step_networks()
+
+        return self.async_show_form(
+            step_id="session",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USER_TOKEN): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
                     ),
                 }
             ),
