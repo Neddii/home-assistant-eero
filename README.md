@@ -1,4 +1,11 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
+
+> [Architecture](docs/architecture.md) · [Development](docs/development.md) · [Status](docs/project-status.md)
+
+**Purpose:** Home Assistant Eero custom integration
+
+**Interface:** Home Assistant configuration UI via HACS installation; no standalone site
+
 # Eero Home Assistant Integration
 Custom component to allow control of Eero networks in [Home Assistant](https://home-assistant.io).
 
